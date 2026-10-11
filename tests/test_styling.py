@@ -76,3 +76,14 @@ def test_surprisal_highlights_rare_pattern():
     h[10, 25] = 1
     s = local_surprisal(h)
     assert s[10, 25] > s[0, 0]
+
+
+def test_render_hex_shape_and_colours():
+    from cellular_automata.styling import render_hex
+
+    rgb = np.zeros((4, 5, 3), dtype=np.uint8)
+    rgb[..., 0] = 200
+    img = render_hex(rgb, cell_px=10)
+    assert img.ndim == 3 and img.shape[1] >= 50
+    centre = img[img.shape[0] // 2, img.shape[1] // 2]
+    assert centre.tolist() == [200, 0, 0]

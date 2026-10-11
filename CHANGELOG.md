@@ -22,6 +22,18 @@ semantic versioning as defined in CONTRIBUTING.md.
   (cell age, activity, local surprisal).
 - Streamlit app (`app/streamlit_app.py`): elementary or random rules,
   playback, styling and a metrics panel.
+- `lattice`: neighbourhoods as offset lists in any dimension, including a
+  hexagonal lattice in axial coordinates (six neighbours, all at unit distance).
+- `coupled`: two-layer engine, species (0/1) and environment (0..ke-1), each
+  with its own rule over a small set of situations; cross-layer links can be
+  on, spatially shuffled or constant, for a null comparison. Lagged mutual
+  information between layers. A hand-written consumer-resource example rule.
+- `styling.render_hex`: draws a hex grid as hexagons.
+- App page "Two layers": 1D, square or hex lattices, playback, and every
+  run repeated with the links cut so the interaction can be read off.
+- Live playback on both app pages: Play/Pause, Step and Reset, runs without
+  end, speed set by generations per frame and frames per second. 1D shows a
+  scrolling window of recent generations.
 - `wolfram_classes`: Wolfram's classes for the 88 rules, from Martinez (2013).
 - `scripts/sweep_elementary.py`: scores the 88 rules and tests class
   separation against a shuffled-label null.

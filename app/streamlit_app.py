@@ -1,10 +1,9 @@
-"""Play back and style a 1D cellular automaton.
+"""Play a 1D cellular automaton live, with styling and metrics.
 
 Run with:  .venv/bin/streamlit run app/streamlit_app.py
 """
 
 import sys
-import time
 from pathlib import Path
 
 import numpy as np
@@ -13,7 +12,7 @@ import streamlit as st
 # Streamlit Cloud runs from the repo without installing the package.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from cellular_automata.engine import offsets_for_radius, random_state, run, single_cell
+from cellular_automata.engine import offsets_for_radius, random_state, single_cell, step
 from cellular_automata.metrics import (
     compression_decay,
     compression_ratio,
@@ -38,8 +37,9 @@ from cellular_automata.wolfram_classes import CLASS_OF
 
 st.set_page_config(page_title="Cellular automata", layout="wide")
 st.title("Cellular automata")
+ss = st.session_state
 
-# --- Rule -------------------------------------------------------------------
+# --- Rule and world ---------------------------------------------------------
 with st.sidebar:
     st.header("Rule")
     mode = st.radio("Rule source", ["Elementary (Wolfram number)", "Random rule"])
@@ -58,24 +58,11 @@ with st.sidebar:
 
     st.header("World")
     width = st.slider("Width (cells)", 50, 600, 300, 10)
-    steps = st.slider("Generations", 50, 1000, 300, 10)
+    rows_shown = st.slider("Generations shown", 50, 600, 300, 10)
     start = st.radio("Start", ["Random", "Single cell"], horizontal=True)
     seed = st.number_input("Start seed", 0, 10**9, 0)
     boundary = st.radio("Edges", ["periodic", "fixed"], horizontal=True)
 
-
-@st.cache_data
-def simulate(table_bytes, k, offsets, width, steps, start, seed, boundary):
-    table = np.frombuffer(table_bytes, dtype=np.uint8)
-    init = (random_state(width, k, np.random.default_rng(seed)) if start == "Random"
-            else single_cell(width, k))
-    return init, run(init, table, k, offsets, steps, boundary)
-
-
-init, history = simulate(table.tobytes(), k, offsets, width, steps, start, int(seed), boundary)
-
-# --- Styling ----------------------------------------------------------------
-with st.sidebar:
     st.header("Style")
     colour_by = st.radio("Colour by", ["State"] + list(DERIVED))
     if colour_by == "State":
@@ -89,64 +76,88 @@ with st.sidebar:
     scale = st.slider("Pixel size", 1, 6, 2)
 
 
-@st.cache_data
-def derived(history, name):
-    return DERIVED[name](history) if name != "Local surprisal" else DERIVED[name](history, k)
+# --- Live state ---------------------------------------------------------------
+def reset() -> None:
+    init = (random_state(width, k, np.random.default_rng(int(seed))) if start == "Random"
+            else single_cell(width, k))
+    ss.init = init
+    ss.window = init[None, :].copy()
+    ss.gen = 0
 
 
-breaks = None
-if colour_by == "State":
-    image = categorical(history, colours)
-else:
-    values = derived(history, colour_by)
-    if classing == "Continuous":
-        image = continuous(values, GRADIENTS[gradient])
-    else:
-        image, breaks = classified(values, GRADIENTS[gradient], classing, n_classes)
+params = (table.tobytes(), k, offsets, width, start, int(seed), boundary)
+if ss.get("params") != params:
+    ss.params = params
+    reset()
+ss.setdefault("running", False)
 
-# --- Playback ---------------------------------------------------------------
+
+def advance(n: int) -> None:
+    state = ss.window[-1]
+    new_rows = np.empty((n, width), dtype=np.uint8)
+    for i in range(n):
+        state = step(state, table, k, offsets, boundary)
+        new_rows[i] = state
+    ss.window = np.vstack([ss.window, new_rows])[-rows_shown:]
+    ss.gen += n
+
+
+def toggle() -> None:
+    ss.running = not ss.running
+
+
 left, right = st.columns([3, 1])
 with left:
-    if "gen" not in st.session_state or st.session_state.gen > steps:
-        st.session_state.gen = steps
-    c1, c2, c3 = st.columns([1, 1, 4])
-    play = c1.button("Play")
-    if c2.button("Reset"):
-        st.session_state.gen = 0
-    speed = c3.slider("Generations per frame", 1, 50, 5)
-    gen = st.slider("Generation", 0, steps, key="gen")
-    frame = st.empty()
+    c1, c2, c3, c4, c5 = st.columns([1, 1, 1, 2, 2])
+    c1.button("Pause" if ss.running else "Play", on_click=toggle, type="primary")
+    c2.button("Step", on_click=lambda: advance(ss.get("per_frame", 1)), disabled=ss.running)
+    c3.button("Reset", on_click=reset)
+    c4.slider("Generations per frame", 1, 50, 1, key="per_frame")
+    fps = c5.slider("Frames per second", 1, 30, 10)
 
-    def show(t):
-        canvas = np.full_like(image, 255)
-        canvas[: t + 1] = image[: t + 1]
-        frame.image(upscale(canvas, scale), caption=f"Generation {t} of {steps}")
 
-    if play:
-        for t in range(gen, steps + 1, speed):
-            show(t)
-            time.sleep(0.03)
-        show(steps)
-    else:
-        show(gen)
+def styled(window: np.ndarray):
+    if colour_by == "State":
+        return categorical(window, colours), None
+    values = (DERIVED[colour_by](window, k) if colour_by == "Local surprisal"
+              else DERIVED[colour_by](window))
+    if classing == "Continuous":
+        return continuous(values, GRADIENTS[gradient]), None
+    return classified(values, GRADIENTS[gradient], classing, n_classes)
+
+
+@st.fragment(run_every=(1 / fps) if ss.running else None)
+def live() -> None:
+    if ss.running:
+        advance(ss.per_frame)
+    image, breaks = styled(ss.window)
+    canvas = np.full((rows_shown, width, 3), 255, dtype=np.uint8)
+    canvas[: image.shape[0]] = image
+    st.markdown(f"Generation **{ss.gen}**" + (" (running)" if ss.running else ""))
+    st.image(upscale(canvas, scale), caption="Time runs down. The newest generation is the bottom row.")
     if breaks is not None:
         st.caption("Class breaks: " + ", ".join(f"{b:.3g}" for b in breaks))
 
+
+with left:
+    live()
+
+
 # --- Metrics ----------------------------------------------------------------
 @st.cache_data
-def metric_panel(table_bytes, k, offsets, init, history, boundary):
+def metric_panel(table_bytes, k, offsets, state, window, boundary):
     table = np.frombuffer(table_bytes, dtype=np.uint8)
-    late = history[history.shape[0] // 2 :]
+    steps = max(window.shape[0] - 1, 1)
+    late = window[window.shape[0] // 2 :]
     comp = compression_ratio(late, k)
-    dmg = float(damage_spreading(table, init, k, offsets, history.shape[0] - 1, boundary)[-1])
-    transient, period = transient_and_period(table, init, k, offsets, 2000, boundary)
+    dmg = float(damage_spreading(table, state, k, offsets, steps, boundary)[-1])
+    transient, period = transient_and_period(table, state, k, offsets, 2000, boundary)
     return {
         "Compression ratio": comp,
         "Damage spread": dmg,
         "Structured complexity": structured_complexity(dmg, comp),
-        "Compression decay": compression_decay(history, k),
-        "Spatial entropy": spatial_entropy(history),
-        "Langton's lambda": langton_lambda(table),
+        "Compression decay": compression_decay(window, k),
+        "Spatial entropy": spatial_entropy(window),
         "Transient / period": f"{transient} / {period if period else '> 2000'}",
     }
 
@@ -155,11 +166,19 @@ with right:
     st.subheader("Metrics")
     if mode.startswith("Elementary"):
         rep = canonical_number(int(number))
-        cls = CLASS_OF[rep]
-        st.markdown(f"Wolfram class **{['I', 'II', 'III', 'IV'][cls - 1]}**"
+        st.markdown(f"Wolfram class **{['I', 'II', 'III', 'IV'][CLASS_OF[rep] - 1]}**"
                     + (f" (equivalent to rule {rep})" if rep != number else ""))
-    for name, value in metric_panel(table.tobytes(), k, offsets, init, history, boundary).items():
-        st.metric(name, f"{value:.3f}" if isinstance(value, float) else value)
+    st.metric("Langton's lambda", f"{langton_lambda(table):.3f}")
+    if ss.running:
+        st.caption("Pause to measure the generations on screen.")
+    elif ss.window.shape[0] < 20:
+        st.caption("Run at least 20 generations to measure.")
+    else:
+        st.caption("Measured on the generations on screen; damage and period run on "
+                   "from the newest generation.")
+        for name, value in metric_panel(table.tobytes(), k, offsets, ss.window[-1],
+                                        ss.window, boundary).items():
+            st.metric(name, f"{value:.3f}" if isinstance(value, float) else value)
     with st.expander("Rule table"):
         st.code(" ".join(map(str, table[::-1])), language=None)
         st.caption("Outputs from the highest neighbourhood index down, Wolfram order.")

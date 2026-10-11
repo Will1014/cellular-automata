@@ -142,3 +142,35 @@ DERIVED = {"Cell age": cell_age, "Activity": activity, "Local surprisal": local_
 
 def upscale(image: np.ndarray, factor: int) -> np.ndarray:
     return np.repeat(np.repeat(image, factor, axis=0), factor, axis=1) if factor > 1 else image
+
+
+# --- Hexagonal rendering ------------------------------------------------------
+
+def render_hex(rgb: np.ndarray, cell_px: int = 6, background: str = "#ffffff") -> np.ndarray:
+    """Draw an axial-coordinate grid of colours as pointy-top hexagons.
+
+    rgb has shape (rows, cols, 3). The grid is periodic, so the sheared
+    parallelogram is wrapped into a rectangle: row r is drawn shifted by half
+    a cell when r is odd, which is the same torus seen from a different cut.
+    """
+    from PIL import Image, ImageDraw
+
+    rows, cols = rgb.shape[:2]
+    w = cell_px  # centre-to-centre distance between horizontal neighbours
+    radius = w / np.sqrt(3)
+    dy = radius * 1.5
+    width = int(np.ceil((cols + 0.5) * w))
+    height = int(np.ceil((rows - 1) * dy + 2 * radius))
+    img = Image.new("RGB", (width, height), hex_to_rgb(background))
+    draw = ImageDraw.Draw(img)
+    angles = np.deg2rad(90 + 60 * np.arange(6))
+    ux, uy = radius * np.cos(angles), radius * np.sin(angles)
+    for r in range(rows):
+        # Axial q maps to display column (q + r // 2) % cols; invert to read rgb.
+        shift = (r % 2) * w / 2
+        cy = radius + r * dy
+        for c in range(cols):
+            q = (c - r // 2) % cols
+            cx = w / 2 + c * w + shift
+            draw.polygon(list(zip(cx + ux, cy - uy)), fill=tuple(int(v) for v in rgb[r, q]))
+    return np.asarray(img)

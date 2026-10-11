@@ -8,7 +8,7 @@ explores which rules produce structured behaviour, using Wolfram's 256
 elementary rules as a calibrated test bed, then evolves rules in larger
 spaces with a genetic algorithm.
 
-Status: engine, metrics, styling and app built. Rule evolution not yet built.
+Status: engine, metrics, styling, two-layer species/environment engine (1D, square, hex) and app built. Rule evolution not yet built.
 
 ## Install
 
@@ -30,6 +30,8 @@ python3 -m venv .venv
 | --- | --- |
 | `engine` | Rule tables, stepping, edge handling. A lattice is a list of neighbour offsets. |
 | `rules` | Wolfram rule numbers, random rules, mutation, symmetry classes |
+| `lattice` | Neighbourhood offsets: 1D, square, hexagonal (axial coordinates) |
+| `coupled` | Two-layer species/environment engine with switchable cross-layer links |
 | `metrics` | Entropy, compressibility, Langton's lambda, damage spreading, cycle length |
 | `styling` | Palettes, gradients, Jenks/quantile/equal-interval breaks, derived values |
 | `evolve` | Planned: genetic algorithm over rule tables, with a random-rule baseline |
@@ -37,7 +39,8 @@ python3 -m venv .venv
 
 ## Known limitations
 
-- 1D only. Hex and 3D lattices are planned in the design but not built.
+- The single-layer engine is 1D only. The two-layer engine runs 1D, square and hex grids.
+- Same-time correlation between layers misses lagged feedback; use the lagged measure.
 - The class IV metrics are validated in-sample on 4 class IV rules only.
 - Local surprisal uses a fixed 3-cell window, too narrow to learn rule 110's
   14-cell background.
