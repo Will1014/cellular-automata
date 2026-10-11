@@ -20,6 +20,10 @@ python3 -m venv .venv
 
 ## Run the app
 
+Live at https://cellular-automata.streamlit.app/, redeployed on every push to `main`.
+
+Locally:
+
 ```bash
 .venv/bin/streamlit run app/streamlit_app.py
 ```
