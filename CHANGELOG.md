@@ -8,3 +8,12 @@ semantic versioning as defined in CONTRIBUTING.md.
 
 ### Added
 - Repository scaffold: package skeleton, licence, CI, citation file.
+- `engine`: 1D runner over a rule lookup table, any state count and
+  neighbour offsets, periodic or fixed boundary.
+- `rules`: Wolfram rule numbering, mirror/complement symmetry, the 88
+  elementary representatives, random rules with a target lambda, mutation.
+- `metrics`: block entropy (spatial, temporal), compression ratio, Langton's
+  lambda, damage spreading, transient and period.
+- `wolfram_classes`: Wolfram's classes for the 88 rules, from Martinez (2013).
+- `scripts/sweep_elementary.py`: scores the 88 rules and tests class
+  separation against a shuffled-label null.
