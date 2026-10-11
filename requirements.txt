@@ -1,0 +1,5 @@
+# Pinned versions tested locally on 2026-10-11 (Python 3.14.7)
+numpy==2.5.4
+streamlit==1.65.0
+pytest==9.1.1
+ruff==0.17.0

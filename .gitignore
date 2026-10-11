@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Run outputs belong on Drive, not in the repo
+runs/
+outputs/
+
+# macOS and Drive sync artefacts
+.DS_Store
+*conflicted copy*
+Icon?
+
+# Secrets
+.env
+.streamlit/secrets.toml

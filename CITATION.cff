@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "cellular-automata"
+abstract: "Generate, play back, measure and evolve 1D cellular automaton rules."
+authors:
+  - family-names: Armstrong
+    given-names: Will
+    affiliation: Gaiametric
+version: 0.1.0
+date-released: 2026-10-11
+license: MIT
+repository-code: "https://github.com/Will1014/cellular-automata"
