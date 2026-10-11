@@ -80,3 +80,21 @@ def transient_and_period(
             return seen[key], t - seen[key]
         seen[key] = t
     return max_steps, None
+
+
+def structured_complexity(damage: float, compression: float) -> float:
+    """Edge-of-chaos score: high only when a perturbation spreads (not simple)
+    and the history still compresses (not noise). Both inputs in [0, 1]."""
+    return float(damage * max(0.0, 1.0 - compression))
+
+
+def compression_decay(history: np.ndarray, k: int = 2, window: float = 0.2) -> float:
+    """Compression ratio of an early window minus that of the final window.
+    Positive when the history becomes more regular over time, as when moving
+    structures collide and annihilate. The first 10% is skipped as transient."""
+    t = history.shape[0]
+    w = max(1, int(t * window))
+    start = max(1, t // 10)
+    early = history[start : start + w]
+    late = history[t - w :]
+    return compression_ratio(early, k) - compression_ratio(late, k)

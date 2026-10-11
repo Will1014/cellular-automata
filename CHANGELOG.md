@@ -14,6 +14,9 @@ semantic versioning as defined in CONTRIBUTING.md.
   elementary representatives, random rules with a target lambda, mutation.
 - `metrics`: block entropy (spatial, temporal), compression ratio, Langton's
   lambda, damage spreading, transient and period.
+- `metrics.structured_complexity` and `metrics.compression_decay`: class IV
+  candidates. On the 88 elementary rules they separate class IV from the
+  rest at AUC 0.85 and 0.96 against a shuffled-label null. In-sample only.
 - `wolfram_classes`: Wolfram's classes for the 88 rules, from Martinez (2013).
 - `scripts/sweep_elementary.py`: scores the 88 rules and tests class
   separation against a shuffled-label null.

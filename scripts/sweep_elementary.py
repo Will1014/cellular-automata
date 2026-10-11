@@ -12,17 +12,20 @@ import numpy as np
 
 from cellular_automata.engine import random_state, run
 from cellular_automata.metrics import (
+    compression_decay,
     compression_ratio,
     damage_spreading,
     langton_lambda,
     spatial_entropy,
+    structured_complexity,
     temporal_entropy,
     transient_and_period,
 )
 from cellular_automata.rules import elementary, elementary_representatives
 from cellular_automata.wolfram_classes import CLASS_OF
 
-METRICS = ["spatial_entropy", "temporal_entropy", "compression", "damage", "lambda", "period"]
+METRICS = ["spatial_entropy", "temporal_entropy", "compression", "damage", "lambda", "period",
+           "structured_complexity", "compression_decay"]
 
 
 def score(rule: int, width: int, steps: int, seeds: int) -> dict:
@@ -33,13 +36,17 @@ def score(rule: int, width: int, steps: int, seeds: int) -> dict:
         h = run(init, table, steps=steps)
         late = h[steps // 2 :]
         _, period = transient_and_period(table, init, max_steps=4 * steps)
+        compression = compression_ratio(late)
+        damage = damage_spreading(table, init, steps=steps)[-1]
         rows.append([
             spatial_entropy(h),
             temporal_entropy(h),
-            compression_ratio(late),
-            damage_spreading(table, init, steps=steps)[-1],
+            compression,
+            damage,
             langton_lambda(table),
             np.log2(period) if period else np.log2(4 * steps),  # no repeat -> cap
+            structured_complexity(damage, compression),
+            compression_decay(h),
         ])
     return dict(zip(METRICS, np.mean(rows, axis=0)))
 
@@ -71,7 +78,7 @@ def main() -> None:
 
     classes = np.array([row["wolfram_class"] for row in table])
     rng = np.random.default_rng(0)
-    contrasts = {"III+IV vs I+II": classes >= 3, "IV vs III": None}
+    contrasts = {"III+IV vs I+II": classes >= 3, "IV vs III": None, "IV vs rest": classes == 4}
     results = []
     for m in METRICS:
         x = np.array([row[m] for row in table])
@@ -85,9 +92,9 @@ def main() -> None:
             null = np.array([auc(xs, rng.permutation(pos)) for _ in range(a.shuffles)])
             p_two = (np.abs(null - 0.5) >= abs(obs - 0.5)).mean()
             results.append({"metric": m, "contrast": name, "n_pos": int(pos.sum()),
-                            "auc": round(obs, 3), "null_mean": round(null.mean(), 3),
-                            "null_95": round(np.quantile(np.abs(null - 0.5), 0.95) + 0.5, 3),
-                            "p": round(p_two, 4)})
+                            "auc": round(float(obs), 3), "null_mean": round(float(null.mean()), 3),
+                            "null_95": round(float(np.quantile(np.abs(null - 0.5), 0.95)) + 0.5, 3),
+                            "p": round(float(p_two), 4)})
     with open(a.out / "class_separation.csv", "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=results[0].keys())
         w.writeheader()

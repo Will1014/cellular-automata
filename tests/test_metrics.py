@@ -63,3 +63,22 @@ def test_runs_are_deterministic_for_a_seed():
     b = run(random_state(50, 2, np.random.default_rng(7)), elementary(110), steps=40)
     assert (a == b).all()
     assert run(single_cell(9), elementary(30), steps=1).shape == (2, 9)
+
+
+def test_structured_complexity_bounds():
+    from cellular_automata.metrics import structured_complexity
+
+    assert structured_complexity(0.0, 0.3) == 0.0  # perturbation dies: simple
+    assert structured_complexity(0.5, 1.0) == 0.0  # incompressible: noise
+    assert structured_complexity(0.5, 0.4) == 0.3
+
+
+def test_compression_decay_sign():
+    from cellular_automata.metrics import compression_decay
+
+    rng = np.random.default_rng(0)
+    noise_then_flat = np.vstack([rng.integers(0, 2, (500, 200), dtype=np.uint8),
+                                 np.zeros((500, 200), dtype=np.uint8)])
+    assert compression_decay(noise_then_flat) > 0.8
+    steady = rng.integers(0, 2, (1000, 200), dtype=np.uint8)
+    assert abs(compression_decay(steady)) < 0.05
