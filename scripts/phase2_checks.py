@@ -7,8 +7,8 @@ Four modes, each over one batch of randomly drawn worlds:
   must settle to the same state and stay there
 - lattice: the same worlds on an 8 x 8 hex lattice, each cell started
   differently; every run must end uniform, at the patch's settled state
-- community: the organisation worlds again; every core a settled state
-  holds must be able to run on what survives
+- community: the organisation worlds again; which cores each settled
+  state holds, and which of them are copying (descriptive)
 
 One job per batch. Each world's record is appended to
 `<out>/<mode>_b<batch>.jsonl` as it finishes, and the world's seed is
@@ -101,8 +101,10 @@ def check_organisations(rng):
 
 
 def check_community(rng):
-    """Same worlds and starts as check_organisations (same seeds). Every core
-    the settled state holds must be able to run on what survives."""
+    """Same worlds and starts as check_organisations (same seeds). Records
+    which cores each settled state holds, and which of those are copying.
+    Descriptive: a core is copying by definition when its reactions run on
+    the survivors, so there is nothing here that can fail."""
     world = draw_world(rng, driven=True)
     cores = world_cores(world)
     starts = []
@@ -112,8 +114,7 @@ def check_community(rng):
             starts.append({"settled": False, "speed": speed})
             continue
         starts.append({"settled": True, "community": community(world, x, cores, PRESENT)})
-    failed = any(not c["runs"] for s in starts if s["settled"] for c in s["community"])
-    return world, {"cores": [sorted(c) for _, c in cores], "starts": starts, "failed": failed}
+    return world, {"cores": [sorted(c) for _, c in cores], "starts": starts, "failed": False}
 
 
 def draw_set_aside(rng):

@@ -69,8 +69,10 @@ def world_cores(world: World) -> list[tuple[frozenset[int], frozenset[int]]]:
 
 
 def community(world: World, x, cores, present: float = 1e-9) -> list[dict]:
-    """The cores a state holds: every core whose ingredients are all present,
-    with whether each of its reactions can run on what is present."""
+    """The cores a state holds: every core whose ingredients are all present.
+    `runs` says whether it is copying itself, meaning each of its reactions
+    can run on what is present. A core can be present without copying, when
+    reservoirs or other recipes supply its ingredients."""
     here = set(np.flatnonzero(np.asarray(x) > present).tolist())
     s_in, _ = directed(world.n, world.recipes)
     held = []
