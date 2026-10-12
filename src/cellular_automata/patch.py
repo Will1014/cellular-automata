@@ -67,8 +67,11 @@ def _flux_function(world: World):
     right = slots([b for _, b in world.recipes] + [(int(i),) for i in held])
 
     def fluxes(x):
-        padded = np.append(x, 1.0)
-        return kf * padded[left].prod(axis=1), kb * padded[right].prod(axis=1)
+        # Any trailing axes (cells of a lattice) ride along.
+        padded = np.concatenate([x, np.ones((1,) + x.shape[1:], dtype=x.dtype)])
+        shape = (-1,) + (1,) * (x.ndim - 1)
+        return (kf.reshape(shape) * padded[left].prod(axis=1),
+                kb.reshape(shape) * padded[right].prod(axis=1))
 
     return fluxes
 
@@ -91,17 +94,18 @@ def entropy_production(world: World, x: np.ndarray) -> float:
 
 
 def rate_of_change(world: World):
-    """The patch's equations: amounts in, rate of change of each amount out."""
+    """The patch's equations: amounts in, rate of change of each amount out.
+    Amounts may carry trailing axes, one patch per position along them."""
     S = _full_matrix(world)
     fluxes = _flux_function(world)
 
     def rhs(x):
         jf, jb = fluxes(x)
-        dx = S @ (jf - jb)
+        dx = np.tensordot(S, jf - jb, axes=1)
         if world.decay:
             lost = world.decay * x[:-1]
             dx[:-1] -= lost
-            dx[-1] += lost.sum()
+            dx[-1] += lost.sum(axis=0)
         return dx
 
     return rhs
