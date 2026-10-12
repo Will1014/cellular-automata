@@ -97,7 +97,17 @@ function drawMap() {
     const hit = el("circle", {cx:X(p.fw), cy:Y(p.fa), r:10, fill:"transparent"}, svg);
     hit.addEventListener("mousemove", e => showTip(e, `<b>Rule ${p.rule}</b> · class ${name}<br>free will ${p.fw.toFixed(3)}<br>fate ${p.fa.toFixed(2)}`));
     hit.addEventListener("mouseleave", hideTip);
-    if (p.wolfram_class >= 3) el("text", {x:X(p.fw)+8, y:Y(p.fa)-6, class:"label"}, svg).textContent = p.rule;
+  }
+  // one label per cluster of nearby class III and IV points, so labels never stack
+  const groups = [];
+  for (const p of pts.filter(q => q.wolfram_class >= 3)) {
+    const x = X(p.fw), y = Y(p.fa), g = groups.find(g => Math.hypot(g.x - x, g.y - y) < 12);
+    if (g) g.rules.push(p.rule); else groups.push({x, y, rules:[p.rule]});
+  }
+  for (const g of groups) {
+    const left = g.x > w - 140;
+    el("text", {x: left ? g.x - 8 : g.x + 8, y: g.y - 8, "text-anchor": left ? "end" : "start",
+      class:"label"}, svg).textContent = g.rules.join(", ");
   }
   const hidden = RULES.length - pts.length;
   el("text", {x:w-m.r, y:m.t+12, "text-anchor":"end", class:"label"}, svg).textContent =
@@ -116,10 +126,12 @@ function drawDP(L) {
     const p0 = 0.6, p1 = 0.9;
     const X = v => m.l + (w-m.l-m.r) * (v - p0) / (p1 - p0), Y = v => h - m.b - (h-m.t-m.b) * v / ymax;
     const g = el("g", {class:"axis"}, svg);
-    for (let i = 0; i <= 3; i++) { const v = p0 + (p1-p0)*i/3, x = X(v), y = h - m.b - (h-m.t-m.b)*i/3;
+    for (let i = 0; i <= 3; i++) { const v = p0 + (p1-p0)*i/3, x = X(v), y = h - m.b - (h-m.t-m.b)*i/4;
       el("line", {x1:x, x2:x, y1:m.t, y2:h-m.b}, g); el("line", {x1:m.l, x2:w-m.r, y1:y, y2:y}, g);
       el("text", {x, y:h-m.b+16, "text-anchor":"middle"}, g).textContent = v.toFixed(1);
-      el("text", {x:m.l-6, y:y+4, "text-anchor":"end"}, g).textContent = (ymax*i/3).toFixed(1); }
+      el("text", {x:m.l-6, y:y+4, "text-anchor":"end"}, g).textContent = (ymax*i/4).toFixed(2); }
+    { const y = m.t; el("line", {x1:m.l, x2:w-m.r, y1:y, y2:y}, g);
+      el("text", {x:m.l-6, y:y+4, "text-anchor":"end"}, g).textContent = ymax.toFixed(2); }
     el("text", {x:(m.l+w-m.r)/2, y:h-4, "text-anchor":"middle"}, g).textContent = "spreading probability p";
     el("line", {x1:X(0.705485), x2:X(0.705485), y1:m.t, y2:h-m.b, stroke:css("--muted"), "stroke-dasharray":"4 3"}, svg);
     el("text", {x:X(0.705485)+4, y:m.t+10, class:"label"}, svg).textContent = "tipping point";
