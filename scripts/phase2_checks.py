@@ -1,12 +1,14 @@
 """Phase 2 checks against simulation (docs/2026-10-12_phase2-tests.md).
 
-Three modes, each over one batch of randomly drawn worlds:
+Four modes, each over one batch of randomly drawn worlds:
 - organisations: driven worlds with decay, 5 starts each; every settled
   state's survivors must form an organisation
 - patch: worlds the screen sets aside, 5 starts sharing their totals; all
   must settle to the same state and stay there
 - lattice: the same worlds on an 8 x 8 hex lattice, each cell started
   differently; every run must end uniform, at the patch's settled state
+- community: the organisation worlds again; every core a settled state
+  holds must be able to run on what survives
 
 One job per batch. Each world's record is appended to
 `<out>/<mode>_b<batch>.jsonl` as it finishes, and the world's seed is
@@ -27,7 +29,7 @@ from cellular_automata.patch import World, _full_matrix, rate_of_change, run_pat
 from cellular_automata.patch_lattice import lattice_rate_of_change, run_lattice
 from cellular_automata.provenance import Clocks, provenance
 from cellular_automata.screen import verdict
-from cellular_automata.species import is_organisation
+from cellular_automata.species import community, is_organisation, world_cores
 
 COMP = with_empty([[1, 0], [0, 1], [1, 1], [2, 0], [2, 1]])
 RECIPES = balanced_recipes(COMP)
@@ -98,6 +100,22 @@ def check_organisations(rng):
     return world, {"starts": starts, "failed": failed}
 
 
+def check_community(rng):
+    """Same worlds and starts as check_organisations (same seeds). Every core
+    the settled state holds must be able to run on what survives."""
+    world = draw_world(rng, driven=True)
+    cores = world_cores(world)
+    starts = []
+    for _ in range(STARTS):
+        x, speed = settle(world, draw_start(rng))
+        if speed > SETTLED:
+            starts.append({"settled": False, "speed": speed})
+            continue
+        starts.append({"settled": True, "community": community(world, x, cores, PRESENT)})
+    failed = any(not c["runs"] for s in starts if s["settled"] for c in s["community"])
+    return world, {"cores": [sorted(c) for _, c in cores], "starts": starts, "failed": failed}
+
+
 def draw_set_aside(rng):
     while True:
         world = draw_world(rng, driven=False)
@@ -141,7 +159,7 @@ def check_lattice(rng):
                    "failed": settled and (unevenness > SAME or off_patch > SAME)}
 
 
-CHECKS = {"organisations": check_organisations, "patch": check_patch, "lattice": check_lattice}
+CHECKS = {"organisations": check_organisations, "community": check_community, "patch": check_patch, "lattice": check_lattice}
 
 
 def describe(world: World) -> dict:
