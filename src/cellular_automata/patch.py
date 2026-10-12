@@ -90,13 +90,12 @@ def entropy_production(world: World, x: np.ndarray) -> float:
     return float(np.sum((jf[ok] - jb[ok]) * np.log(jf[ok] / jb[ok])))
 
 
-def run_patch(world: World, x0, t_end: float, n_out: int = 200) -> tuple[np.ndarray, np.ndarray]:
-    """Integrate the patch from `x0` to `t_end`. Returns times and amounts,
-    shape (n_out, n)."""
+def rate_of_change(world: World):
+    """The patch's equations: amounts in, rate of change of each amount out."""
     S = _full_matrix(world)
     fluxes = _flux_function(world)
 
-    def rhs(_t, x):
+    def rhs(x):
         jf, jb = fluxes(x)
         dx = S @ (jf - jb)
         if world.decay:
@@ -104,6 +103,17 @@ def run_patch(world: World, x0, t_end: float, n_out: int = 200) -> tuple[np.ndar
             dx[:-1] -= lost
             dx[-1] += lost.sum()
         return dx
+
+    return rhs
+
+
+def run_patch(world: World, x0, t_end: float, n_out: int = 200) -> tuple[np.ndarray, np.ndarray]:
+    """Integrate the patch from `x0` to `t_end`. Returns times and amounts,
+    shape (n_out, n)."""
+    f = rate_of_change(world)
+
+    def rhs(_t, x):
+        return f(x)
 
     times = np.linspace(0.0, t_end, n_out)
     sol = solve_ivp(rhs, (0.0, t_end), np.asarray(x0, dtype=float), method="LSODA",
