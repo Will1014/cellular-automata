@@ -75,3 +75,13 @@ def test_wider_neighbourhood_and_more_states_run():
 def test_wrong_table_size_raises():
     with pytest.raises(ValueError):
         run(single_cell(10), np.zeros(4, dtype=np.uint8))
+
+
+def test_final_states_match_run_for_each_lattice():
+    rng = np.random.default_rng(3)
+    initial = rng.integers(0, 2, (5, 37), dtype=np.uint8)
+    from cellular_automata.engine import final_states
+
+    out = final_states(initial, elementary(110), steps=25)
+    for i in range(5):
+        assert out[i].tolist() == run(initial[i], elementary(110), steps=25)[-1].tolist()

@@ -71,3 +71,25 @@ def single_cell(width: int, k: int = 2) -> np.ndarray:
 
 def random_state(width: int, k: int, rng: np.random.Generator) -> np.ndarray:
     return rng.integers(0, k, size=width, dtype=np.uint8)
+
+
+def final_states(
+    initial: np.ndarray,
+    table: np.ndarray,
+    k: int = 2,
+    offsets: tuple[int, ...] = (-1, 0, 1),
+    steps: int = 100,
+) -> np.ndarray:
+    """Run many independent periodic lattices at once and return only their
+    final states. `initial` has shape (runs, width); memory stays at one
+    state per run, so thousands of runs fit where a full history would not."""
+    table = np.asarray(table, dtype=np.uint8)
+    if table.shape[0] != k ** len(offsets):
+        raise ValueError(f"table has {table.shape[0]} entries, expected {k ** len(offsets)}")
+    state = np.asarray(initial, dtype=np.uint8)
+    for _ in range(steps):
+        idx = np.zeros(state.shape, dtype=np.intp)
+        for o in offsets:
+            idx = idx * k + np.roll(state, -o, axis=1)
+        state = table[idx]
+    return state
