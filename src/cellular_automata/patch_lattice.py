@@ -41,7 +41,7 @@ def run_lattice(world: World, move, x0, t_end: float, offsets=HEX_6):
     x0 = np.asarray(x0, dtype=float)
     rhs = lattice_rate_of_change(world, move, x0.shape[1:], offsets)
     sol = solve_ivp(rhs, (0.0, t_end), x0.ravel(), method="LSODA", t_eval=[t_end],
-                    rtol=1e-8, atol=1e-12)
+                    rtol=1e-10, atol=1e-14)
     if not sol.success:
         raise RuntimeError(sol.message)
     return sol.y[:, -1].reshape(x0.shape)
