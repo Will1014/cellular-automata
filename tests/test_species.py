@@ -6,7 +6,8 @@ import pytest
 from scipy.optimize import brentq
 
 from cellular_automata.patch import World, run_patch
-from cellular_automata.species import background, invasion_rate, is_organisation
+from cellular_automata.species import (background, community, invasion_rate, is_organisation,
+                                       world_cores)
 
 F, X, E = 0, 1, 2
 DECAY = 0.05
@@ -60,3 +61,17 @@ def test_organisations_of_the_replicator():
     assert not is_organisation(world, [E])
     # Not closed: X alone decays into empty space.
     assert not is_organisation(world, [X])
+
+
+@pytest.mark.parametrize("ratio", [0.9, 1.1])
+def test_replicator_community_appears_only_past_the_threshold(ratio):
+    world = replicator(mu_at(ratio))
+    cores = world_cores(world)
+    assert [sorted(c) for _, c in cores] == [[X]]
+    x0 = np.array([0.1, 0.1, 0.8])
+    _, xs = run_patch(world, x0, t_end=1e4, n_out=2)
+    held = community(world, xs[-1], cores)
+    if ratio < 1:
+        assert held == []
+    else:
+        assert [h["core"] for h in held] == [[X]] and held[0]["runs"]

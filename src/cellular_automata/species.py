@@ -4,6 +4,7 @@ which the run actually holds (plan section 3)."""
 import numpy as np
 from scipy.optimize import linprog
 
+from cellular_automata.cores import directed, minimal_autocatalytic_subnetworks
 from cellular_automata.patch import World, rate_of_change, run_patch
 from cellular_automata.screen import reactions
 
@@ -58,3 +59,23 @@ def is_organisation(world: World, members) -> bool:
     res = linprog(np.zeros(len(usable)), A_ub=-S, b_ub=np.zeros(len(rows)),
                   bounds=[(1, None)] * len(usable), method="highs")
     return res.status == 0
+
+
+def world_cores(world: World) -> list[tuple[frozenset[int], frozenset[int]]]:
+    """Candidate cores: the minimal self-copying sets of the world's recipes,
+    run both ways, as (one-way reactions, core ingredients). The drive and
+    decay are left out, since a core has to copy itself by its own recipes."""
+    return minimal_autocatalytic_subnetworks(*directed(world.n, world.recipes))
+
+
+def community(world: World, x, cores, present: float = 1e-9) -> list[dict]:
+    """The cores a state holds: every core whose ingredients are all present,
+    with whether each of its reactions can run on what is present."""
+    here = set(np.flatnonzero(np.asarray(x) > present).tolist())
+    s_in, _ = directed(world.n, world.recipes)
+    held = []
+    for reactions, core in cores:
+        if core <= here:
+            runs = all(set(np.flatnonzero(s_in[:, r]).tolist()) <= here for r in reactions)
+            held.append({"core": sorted(core), "reactions": sorted(reactions), "runs": runs})
+    return held
