@@ -93,13 +93,18 @@ def verdict(world: World) -> dict:
         "weakly_reversible": s["weakly_reversible"],
         "deficiency": s["deficiency"],
     }
+    # Could it oscillate: only a set-aside world is shown not to. The atlas's
+    # matrix tests need exactly one more reaction than ingredients, which
+    # worlds of reversible recipes almost never have (phase 2 decision).
     if not world.decay and forces == 0:
         theorem = "detailed balance"
     elif s["weakly_reversible"] and s["deficiency"] == 0:
         theorem = "deficiency zero"
     else:
-        return {"verdict": "run it", "theorem": None, "checked": checked, **s}
-    return {"verdict": "set aside", "theorem": theorem, "checked": checked,
+        return {"verdict": "run it", "theorem": None, "could_oscillate": True,
+                "checked": checked, **s}
+    return {"verdict": "set aside", "theorem": theorem, "could_oscillate": False,
+            "checked": checked,
             "lattice_conditions": list(LATTICE_CONDITIONS), **s}
 
 

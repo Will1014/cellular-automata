@@ -127,3 +127,8 @@ def test_amplification_matches_the_papers_examples(n, reactions, expected):
 def test_replicator_amplifies_and_abc_does_not():
     assert world_amplification(replicator()) > 1.0
     assert world_amplification(abc_world()) <= 1.0 + 1e-6
+
+
+def test_only_set_aside_worlds_are_flagged_unable_to_oscillate():
+    assert verdict(abc_world())["could_oscillate"] is False
+    assert verdict(replicator(decay=0.01))["could_oscillate"] is True
