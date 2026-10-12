@@ -37,7 +37,7 @@ STARTS = 5
 T_END = 1e4
 T_LONGEST = 1e7
 PRESENT = 1e-9   # an amount above this counts as present
-SETTLED = 1e-9   # largest rate of change for a state to count as settled
+SETTLED = 1e-14  # largest rate of change for a state to count as settled
 SAME = 1e-6      # largest difference for two settled states to count as one
 
 
