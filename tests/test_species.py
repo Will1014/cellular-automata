@@ -6,7 +6,7 @@ import pytest
 from scipy.optimize import brentq
 
 from cellular_automata.patch import World, run_patch
-from cellular_automata.species import background, invasion_rate
+from cellular_automata.species import background, invasion_rate, is_organisation
 
 F, X, E = 0, 1, 2
 DECAY = 0.05
@@ -49,3 +49,14 @@ def test_background_refuses_members_that_come_back():
     world = replicator(1.0)
     with pytest.raises(ValueError):
         background(world, [F], np.array([0.1, 0.1, 0.8]))
+
+
+def test_organisations_of_the_replicator():
+    world = replicator(1.0)
+    # Fed F and empty space keep each other going; X joins without breaking it.
+    assert is_organisation(world, [F, E])
+    assert is_organisation(world, [F, X, E])
+    # Not closed: empty space alone makes F through the reservoir.
+    assert not is_organisation(world, [E])
+    # Not closed: X alone decays into empty space.
+    assert not is_organisation(world, [X])

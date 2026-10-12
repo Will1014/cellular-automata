@@ -2,8 +2,10 @@
 which the run actually holds (plan section 3)."""
 
 import numpy as np
+from scipy.optimize import linprog
 
 from cellular_automata.patch import World, rate_of_change, run_patch
+from cellular_automata.screen import reactions
 
 
 def background(world: World, members, x0, t_end: float = 1e4) -> np.ndarray:
@@ -32,3 +34,27 @@ def invasion_rate(world: World, members, x_background) -> float:
         x[j] += 1e-30j
         J[:, col] = f(x)[members].imag / 1e-30
     return float(np.linalg.eigvals(J).real.max())
+
+
+def is_organisation(world: World, members) -> bool:
+    """Whether `members` form a chemical organisation (Dittrich and Speroni di
+    Fenizio 2007): closed, so every reaction that can run on them alone makes
+    nothing outside them, and self-maintaining, so those reactions can all run
+    at once, each at a positive rate, without any member running down."""
+    g = set(members)
+    usable = [(a, b) for a, b in reactions(world) if set(a) <= g]
+    if any(not set(b) <= g for _, b in usable):
+        return False
+    if not usable:
+        return True
+    rows = sorted(g)
+    S = np.zeros((len(rows), len(usable)))
+    for j, (a, b) in enumerate(usable):
+        for i in a:
+            S[rows.index(i), j] -= 1
+        for i in b:
+            S[rows.index(i), j] += 1
+    # Rates of at least 1 (any positive rates rescale to this), S v >= 0.
+    res = linprog(np.zeros(len(usable)), A_ub=-S, b_ub=np.zeros(len(rows)),
+                  bounds=[(1, None)] * len(usable), method="highs")
+    return res.status == 0
