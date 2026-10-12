@@ -24,7 +24,7 @@ import numpy as np
 
 from cellular_automata.network import balanced_recipes, with_empty
 from cellular_automata.patch import World, _full_matrix, rate_of_change, run_patch
-from cellular_automata.patch_lattice import run_lattice
+from cellular_automata.patch_lattice import lattice_rate_of_change, run_lattice
 from cellular_automata.provenance import Clocks, provenance
 from cellular_automata.screen import verdict
 from cellular_automata.species import is_organisation
@@ -35,6 +35,7 @@ N = len(COMP)
 PER_BATCH = 20
 STARTS = 5
 T_END = 1e4
+T_LONGEST = 1e7
 PRESENT = 1e-9   # an amount above this counts as present
 SETTLED = 1e-9   # largest rate of change for a state to count as settled
 SAME = 1e-6      # largest difference for two settled states to count as one
@@ -70,9 +71,16 @@ def same_totals(rng, world: World, x0) -> np.ndarray:
 
 
 def settle(world, x0):
-    _, xs = run_patch(world, x0, T_END, n_out=2)
-    x = xs[-1]
-    return x, float(np.abs(rate_of_change(world)(x)).max())
+    """Run until settled, extending tenfold from T_END up to T_LONGEST. A run
+    still moving at T_LONGEST is reported as unsettled, never as a failure."""
+    x, t = np.asarray(x0, dtype=float), 0.0
+    while True:
+        span = T_END if t == 0 else 9 * t
+        _, xs = run_patch(world, x, span, n_out=2)
+        x, t = xs[-1], t + span
+        speed = float(np.abs(rate_of_change(world)(x)).max())
+        if speed <= SETTLED or t >= T_LONGEST:
+            return x, speed
 
 
 def check_organisations(rng):
@@ -107,20 +115,30 @@ def check_patch(rng):
         finals.append(x)
         speeds.append(speed)
     spread = float(max(np.abs(f - finals[0]).max() for f in finals))
+    settled = max(speeds) <= SETTLED
     return world, {"theorem": theorem, "spread": spread, "speed": max(speeds),
-                   "failed": spread > SAME or max(speeds) > SETTLED}
+                   "settled": settled, "failed": settled and spread > SAME}
 
 
 def check_lattice(rng):
     world, theorem = draw_set_aside(rng)
     move = rng.uniform(0.1, 1.0, N)
     x0 = draw_start(rng, (8, 8))
-    x = run_lattice(world, move, x0, T_END)
-    patch, _ = settle(world, x0.mean(axis=(1, 2)))
+    rhs = lattice_rate_of_change(world, move, x0.shape[1:])
+    x, t = x0, 0.0
+    while True:
+        span = T_END if t == 0 else 9 * t
+        x, t = run_lattice(world, move, x, span), t + span
+        speed = float(np.abs(rhs(0.0, x.ravel())).max())
+        if speed <= SETTLED or t >= T_LONGEST:
+            break
+    patch, patch_speed = settle(world, x0.mean(axis=(1, 2)))
     unevenness = float(np.abs(x - x.mean(axis=(1, 2), keepdims=True)).max())
     off_patch = float(np.abs(x - patch[:, None, None]).max())
+    settled = max(speed, patch_speed) <= SETTLED
     return world, {"theorem": theorem, "unevenness": unevenness, "off_patch": off_patch,
-                   "failed": unevenness > SAME or off_patch > SAME}
+                   "speed": speed, "settled": settled,
+                   "failed": settled and (unevenness > SAME or off_patch > SAME)}
 
 
 CHECKS = {"organisations": check_organisations, "patch": check_patch, "lattice": check_lattice}
@@ -149,7 +167,7 @@ def main(mode: str, batch: int, out: Path) -> None:
     summary = {
         "mode": mode, "batch": batch, "worlds": len(records),
         "failed": [r["seed"] for r in records if r["failed"]],
-        "unsettled_starts": sum(not s["settled"] for r in records for s in r.get("starts", [])),
+        "unsettled": sum(not s["settled"] for r in records for s in r.get("starts", [r])),
         "composition": COMP.tolist(), "starts": STARTS, "t_end": T_END,
         "thresholds": {"present": PRESENT, "settled": SETTLED, "same": SAME},
         "clocks_this_session": clocks.as_dict(), "provenance": provenance(),
