@@ -8,7 +8,7 @@ import pytest
 
 from cellular_automata.network import balanced_recipes, with_empty
 from cellular_automata.patch import World, driving_forces
-from cellular_automata.screen import siphons, structure, verdict
+from cellular_automata.screen import amplification, siphons, structure, verdict, world_amplification
 
 # A = (1,0), B = (0,1), C = (1,1), then empty space: A + B <-> C + empty.
 COMP = with_empty([[1, 0], [0, 1], [1, 1]])
@@ -100,3 +100,30 @@ def test_abc_with_a_reservoir_on_a():
 
 def test_abc_with_decay():
     assert siphons(abc_world(decay=0.01)) == [(A, C), (B, C)]
+
+
+# Amplification factor, against Gagrani et al. 2026's worked values.
+
+def one_way(n, reactions):
+    s_in, s_out = np.zeros((n, len(reactions))), np.zeros((n, len(reactions)))
+    for j, (left, right) in enumerate(reactions):
+        for i in left:
+            s_in[i, j] += 1
+        for i in right:
+            s_out[i, j] += 1
+    return s_in, s_out
+
+
+@pytest.mark.parametrize("n, reactions, expected", [
+    (2, [((0,), (1,)), ((1,), (0, 0))], np.sqrt(2)),            # A -> B, B -> 2A (p. 2)
+    (3, [((0,), (1,)), ((1,), (2,)), ((2,), (0, 0))], 2 ** (1 / 3)),  # A -> B -> C -> 2A (p. 14)
+    (2, [((0,), (1, 1)), ((1,), (0, 0))], 2.0),                 # X1 -> 2X2, X2 -> 2X1 (eq. S54)
+    (2, [((0,), (1,)), ((1,), (0,))], 1.0),                     # A <-> B, not autocatalytic
+])
+def test_amplification_matches_the_papers_examples(n, reactions, expected):
+    assert amplification(*one_way(n, reactions)) == pytest.approx(expected, abs=1e-6)
+
+
+def test_replicator_amplifies_and_abc_does_not():
+    assert world_amplification(replicator()) > 1.0
+    assert world_amplification(abc_world()) <= 1.0 + 1e-6

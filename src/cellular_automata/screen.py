@@ -12,9 +12,11 @@ space, one way only (decision 4)."""
 from itertools import combinations
 
 import numpy as np
+from scipy.optimize import linprog
 from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import connected_components
 
+from cellular_automata.cores import directed
 from cellular_automata.network import Side
 from cellular_automata.patch import World, driving_forces
 
@@ -116,3 +118,35 @@ def siphons(world: World) -> list[tuple[int, ...]]:
             if all(left & g for left, right in rxns if right & g):
                 found.append(group)
     return found
+
+
+def amplification(s_in, s_out, tol: float = 1e-9) -> float:
+    """Maximum amplification factor (Gagrani et al. 2026, eq. 6 and S16): the
+    largest alpha for which some non-zero rates x >= 0 make every ingredient
+    at least alpha times as fast as they use it up, S+ x >= alpha S- x.
+    Above 1 if and only if the network is autocatalytic (their eq. S4).
+
+    The network must be autonomous: no inflow, outflow or reservoir, which
+    the paper strips first. Found by bisection on alpha, each step a
+    feasibility linear programme, so it is accurate to about 1e-7, the
+    solver's feasibility tolerance."""
+    s_in, s_out = np.asarray(s_in, dtype=float), np.asarray(s_out, dtype=float)
+    m = s_in.shape[1]
+
+    def feasible(alpha):
+        res = linprog(np.zeros(m), A_ub=alpha * s_in - s_out, b_ub=np.zeros(len(s_in)),
+                      A_eq=np.ones((1, m)), b_eq=[1.0], bounds=[(0, None)] * m,
+                      method="highs")
+        return res.status == 0
+
+    lo, hi = 0.0, 1.0 + s_out.sum(axis=0).max()
+    while hi - lo > tol:
+        mid = (lo + hi) / 2
+        lo, hi = (mid, hi) if feasible(mid) else (lo, mid)
+    return lo
+
+
+def world_amplification(world: World) -> float:
+    """Amplification factor of the world's recipes, run both ways, with the
+    drive and decay left out so the network is autonomous."""
+    return amplification(*directed(world.n, world.recipes))
