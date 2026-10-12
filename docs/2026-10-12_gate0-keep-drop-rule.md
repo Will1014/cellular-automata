@@ -79,7 +79,10 @@ Contrasts as in the existing sweep: IV vs III (4 against 11), IV vs rest
 chance that a randomly chosen positive rule outranks a randomly chosen
 negative one, oriented so the predicted direction is above 0.5.
 
-- **p-values:** one-sided, from the shuffled-label null. IV vs III is
+- **p-values:** from the shuffled-label null. One-sided for IV vs III,
+  where the review predicts a direction. Two-sided for the other two, where
+  it doesn't (against class I and II, class IV should have more free will,
+  not less). Clarified 2026-10-12 before any result existed. IV vs III is
   exact (all 1,365 ways of choosing 4 rules from 15). The other two use
   100,000 shuffles, seed 0.
 - **Multiple tests:** Holm correction across all nine tests at 0.05.
