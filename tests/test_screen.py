@@ -8,7 +8,7 @@ import pytest
 
 from cellular_automata.network import balanced_recipes, with_empty
 from cellular_automata.patch import World, driving_forces
-from cellular_automata.screen import structure, verdict
+from cellular_automata.screen import siphons, structure, verdict
 
 # A = (1,0), B = (0,1), C = (1,1), then empty space: A + B <-> C + empty.
 COMP = with_empty([[1, 0], [0, 1], [1, 1]])
@@ -73,3 +73,30 @@ def test_decay_on_reservoir_ingredients_only_keeps_weak_reversibility():
     world = World([], np.array([0.0, 0.0, 0.0, 0.0]), np.ones(0),
                   exchange={A: (1.0, 1.0), B: (0.0, 1.0), C: (0.0, 1.0)}, decay=0.01)
     assert structure(world)["weakly_reversible"]
+
+
+# Siphons, listed by hand before the code was written. A siphon is a group
+# of ingredients that, once all gone, nothing can make again: every
+# reaction making one of them uses one of them up.
+
+def replicator(**kw):
+    # F = X = one unit of matter; recipe F + X <-> X + X; F from a reservoir.
+    F, X = 0, 1
+    return World([((F, X), (X, X))], np.array([0.0, -0.5, 0.0]), np.ones(1),
+                 exchange={F: (1.0, 1.0)}, **kw)
+
+
+def test_replicator_siphons():
+    assert siphons(replicator(decay=0.01)) == [(1,)]
+
+
+def test_abc_siphons_follow_the_conservation_laws():
+    assert siphons(abc_world()) == [(A, C), (A, E), (B, C), (B, E)]
+
+
+def test_abc_with_a_reservoir_on_a():
+    assert siphons(abc_world(exchange={A: (1.0, 1.0)})) == [(A, E), (B, C)]
+
+
+def test_abc_with_decay():
+    assert siphons(abc_world(decay=0.01)) == [(A, C), (B, C)]

@@ -9,6 +9,8 @@ The world's full network includes the drive: each exchange is empty space
 <-> the held ingredient, run both ways, and decay is ingredient -> empty
 space, one way only (decision 4)."""
 
+from itertools import combinations
+
 import numpy as np
 from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import connected_components
@@ -97,3 +99,20 @@ def verdict(world: World) -> dict:
         return {"verdict": "run it", "theorem": None, "checked": checked, **s}
     return {"verdict": "set aside", "theorem": theorem, "checked": checked,
             "lattice_conditions": list(LATTICE_CONDITIONS), **s}
+
+
+def siphons(world: World) -> list[tuple[int, ...]]:
+    """Minimal siphons: groups of ingredients that, once all gone, nothing can
+    make again, because every reaction making one of them uses one of them
+    up. Found by checking every group, smallest first, which is fine at the
+    sizes enumerated here (plan section 5)."""
+    rxns = [(set(a), set(b)) for a, b in reactions(world)]
+    found: list[tuple[int, ...]] = []
+    for size in range(1, world.n + 1):
+        for group in combinations(range(world.n), size):
+            g = set(group)
+            if any(g.issuperset(f) for f in found):
+                continue
+            if all(left & g for left, right in rxns if right & g):
+                found.append(group)
+    return found
