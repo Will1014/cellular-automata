@@ -76,8 +76,8 @@ def community(world: World, x, cores, present: float = 1e-9) -> list[dict]:
     here = set(np.flatnonzero(np.asarray(x) > present).tolist())
     s_in, _ = directed(world.n, world.recipes)
     held = []
-    for reactions, core in cores:
+    for steps, core in cores:
         if core <= here:
-            runs = all(set(np.flatnonzero(s_in[:, r]).tolist()) <= here for r in reactions)
-            held.append({"core": sorted(core), "reactions": sorted(reactions), "runs": runs})
+            runs = all(set(np.flatnonzero(s_in[:, r]).tolist()) <= here for r in steps)
+            held.append({"core": sorted(core), "reactions": sorted(steps), "runs": runs})
     return held

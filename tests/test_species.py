@@ -6,8 +6,13 @@ import pytest
 from scipy.optimize import brentq
 
 from cellular_automata.patch import World, run_patch
-from cellular_automata.species import (background, community, invasion_rate, is_organisation,
-                                       world_cores)
+from cellular_automata.species import (
+    background,
+    community,
+    invasion_rate,
+    is_organisation,
+    world_cores,
+)
 
 F, X, E = 0, 1, 2
 DECAY = 0.05
